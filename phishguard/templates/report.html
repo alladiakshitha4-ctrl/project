@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Report Phishing — PhishGuard AI{% endblock %}
+{% block page_title %}Report a Threat{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <div class="section-title"><i class="fas fa-flag text-cyan"></i> Report Phishing Website</div>
+    <p class="text-sm mb-3" style="color:var(--text-secondary)">Help protect the community by reporting suspicious websites. Your report will be reviewed by our security team.</p>
+    <div class="form-group">
+      <label class="form-label">Phishing URL</label>
+      <input type="text" class="form-control" id="r-url" placeholder="https://suspicious-site.xyz">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <select class="form-control" id="r-category">
+        <option value="phishing">Phishing / Credential Theft</option>
+        <option value="malware">Malware Distribution</option>
+        <option value="scam">Online Scam</option>
+        <option value="brand-impersonation">Brand Impersonation</option>
+        <option value="spam">Spam</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-control" id="r-desc" placeholder="Describe why this URL is suspicious. Include any relevant details about the attack..."></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="submitReport()" id="report-btn">
+      <i class="fas fa-paper-plane"></i> Submit Report
+    </button>
+    <div id="report-feedback" class="mt-2"></div>
+  </div>
+  <div>
+    <div class="card mb-3">
+      <div class="section-title"><i class="fas fa-info-circle text-cyan"></i> Reporting Guidelines</div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:0.85rem;color:var(--text-secondary);">
+        <div>✅ Only report URLs you believe are genuinely malicious</div>
+        <div>✅ Include as much context as possible in the description</div>
+        <div>✅ Reports are reviewed by our security team within 24 hours</div>
+        <div>✅ Confirmed threats are added to our blocklist</div>
+        <div>❌ Do not report legitimate websites</div>
+        <div>❌ Do not submit test or placeholder URLs</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title"><i class="fas fa-shield-alt text-cyan"></i> What Happens Next</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,212,255,0.15);color:var(--accent-cyan);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;font-weight:700;">1</div>
+          <div><div style="font-size:0.85rem;font-weight:600;">Report Received</div><div class="text-sm text-muted">Your report is logged and assigned a tracking ID</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,212,255,0.15);color:var(--accent-cyan);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;font-weight:700;">2</div>
+          <div><div style="font-size:0.85rem;font-weight:600;">AI Verification</div><div class="text-sm text-muted">Our AI engine automatically analyzes the reported URL</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,212,255,0.15);color:var(--accent-cyan);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;font-weight:700;">3</div>
+          <div><div style="font-size:0.85rem;font-weight:600;">Expert Review</div><div class="text-sm text-muted">Security team manually reviews flagged reports</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,255,136,0.15);color:var(--accent-green);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;font-weight:700;">✓</div>
+          <div><div style="font-size:0.85rem;font-weight:600;">Threat Blocked</div><div class="text-sm text-muted">Confirmed threats are added to the global blocklist</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function submitReport(){
+  const url=document.getElementById('r-url').value.trim();
+  const desc=document.getElementById('r-desc').value.trim();
+  const category=document.getElementById('r-category').value;
+  if(!url){showToast('Please enter a URL','warning');return;}
+  const btn=document.getElementById('report-btn');
+  btn.innerHTML='<span class="spinner"></span> Submitting...';btn.disabled=true;
+  const d=await apiPost('/api/report',{url,description:desc,category});
+  if(d.success){
+    document.getElementById('report-feedback').innerHTML=`<div class="alert alert-success">✅ Report submitted successfully! Report ID: <strong>#${d.id}</strong></div>`;
+    document.getElementById('r-url').value='';
+    document.getElementById('r-desc').value='';
+    showToast('Report submitted!','success');
+  }else{
+    document.getElementById('report-feedback').innerHTML='<div class="alert alert-danger">Failed to submit report</div>';
+  }
+  btn.innerHTML='<i class="fas fa-paper-plane"></i> Submit Report';btn.disabled=false;
+}
+</script>
+{% endblock %}

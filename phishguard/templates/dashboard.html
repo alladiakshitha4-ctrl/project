@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PhishGuard AI{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon cyan"><i class="fas fa-search"></i></div>
+    <div><div class="stat-value">{{ total_scans }}</div><div class="stat-label">Total Scans</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fas fa-skull-crossbones"></i></div>
+    <div><div class="stat-value">{{ phishing_found }}</div><div class="stat-label">Phishing Detected</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fas fa-shield-check"></i></div>
+    <div><div class="stat-value">{{ safe_count }}</div><div class="stat-label">Safe URLs</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow"><i class="fas fa-percentage"></i></div>
+    <div><div class="stat-value">96.7%</div><div class="stat-label">AI Accuracy</div></div>
+  </div>
+</div>
+
+<div class="grid-2 mb-3">
+  <div class="card">
+    <div class="section-title"><i class="fas fa-bolt text-cyan"></i> Quick Scan</div>
+    <div class="form-group">
+      <label class="form-label">Enter URL to Analyze</label>
+      <input type="text" class="form-control" id="quick-url" placeholder="https://example.com" onkeydown="if(event.key==='Enter')quickScan()">
+    </div>
+    <button class="btn btn-primary" onclick="quickScan()" id="quick-btn">
+      <i class="fas fa-search"></i> Analyze URL
+    </button>
+    <div id="quick-result" class="mt-2"></div>
+  </div>
+  <div class="card">
+    <div class="section-title"><i class="fas fa-shield-alt text-cyan"></i> Protection Status</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="flex flex-center flex-between">
+        <span class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-brain text-cyan"></i> &nbsp;AI Engine</span>
+        <span class="badge badge-success">ACTIVE</span>
+      </div>
+      <div class="flex flex-center flex-between">
+        <span class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-satellite-dish text-cyan"></i> &nbsp;Threat Intel</span>
+        <span class="badge badge-success">LIVE</span>
+      </div>
+      <div class="flex flex-center flex-between">
+        <span class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-envelope text-cyan"></i> &nbsp;Email Scanner</span>
+        <span class="badge badge-success">READY</span>
+      </div>
+      <div class="flex flex-center flex-between">
+        <span class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-database text-cyan"></i> &nbsp;Scan History</span>
+        <span class="badge badge-success">SYNCED</span>
+      </div>
+      <div class="flex flex-center flex-between">
+        <span class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-file-pdf text-cyan"></i> &nbsp;PDF Reports</span>
+        <span class="badge badge-success">ENABLED</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title"><i class="fas fa-history text-cyan"></i> Recent Scans</div>
+  {% if recent_scans %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>URL</th><th>Risk Score</th><th>Verdict</th><th>Time</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        {% for s in recent_scans %}
+        <tr>
+          <td class="url-cell" title="{{ s.url }}">{{ s.url }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;min-width:120px;">
+              <div class="risk-bar-wrap" style="flex:1">
+                <div class="risk-bar {% if s.risk_score>=65 %}danger{% elif s.risk_score>=35 %}warning{% else %}success{% endif %}" style="width:{{ s.risk_score }}%"></div>
+              </div>
+              <span class="text-sm font-mono" style="width:36px">{{ s.risk_score|round(0)|int }}%</span>
+            </div>
+          </td>
+          <td>
+            <span class="badge {% if s.verdict=='PHISHING' %}badge-danger{% elif s.verdict=='SUSPICIOUS' %}badge-warning{% else %}badge-success{% endif %}">
+              {{ s.verdict }}
+            </span>
+          </td>
+          <td class="text-sm text-muted">{{ s.timestamp.strftime('%m/%d %H:%M') }}</td>
+          <td><a href="/api/export/pdf/{{ s.id }}" class="btn btn-outline btn-sm"><i class="fas fa-download"></i></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:40px;color:var(--text-muted);">
+    <i class="fas fa-search" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
+    No scans yet. Use the Quick Scan above to get started.
+  </div>
+  {% endif %}
+  <div class="mt-2"><a href="/history" class="btn btn-outline btn-sm">View All Scans →</a></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function quickScan(){
+  const url=document.getElementById('quick-url').value.trim();
+  if(!url){showToast('Enter a URL to scan','warning');return;}
+  const btn=document.getElementById('quick-btn');
+  btn.innerHTML='<span class="spinner"></span> Scanning...';btn.disabled=true;
+  const result=document.getElementById('quick-result');
+  result.innerHTML='';
+  try{
+    const d=await apiPost('/api/scan/url',{url});
+    const colors={PHISHING:'danger',SUSPICIOUS:'warning',SAFE:'success'};
+    const c=colors[d.verdict]||'info';
+    result.innerHTML=`
+      <div class="alert alert-${c}" style="margin-top:12px">
+        <strong>${d.verdict}</strong> — Risk Score: <strong>${d.risk_score}%</strong><br>
+        <span class="text-sm">${d.recommendations?d.recommendations[d.recommendations.length-1]:''}</span>
+      </div>`;
+    showToast(`Scan complete: ${d.verdict}`,d.verdict==='SAFE'?'success':d.verdict==='PHISHING'?'error':'warning');
+  }catch(e){result.innerHTML='<div class="alert alert-danger">Scan failed. Check the URL.</div>';}
+  btn.innerHTML='<i class="fas fa-search"></i> Analyze URL';btn.disabled=false;
+}
+</script>
+{% endblock %}

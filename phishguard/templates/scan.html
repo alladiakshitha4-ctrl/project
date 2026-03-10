@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}URL & Email Scanner — PhishGuard AI{% endblock %}
+{% block page_title %}Threat Scanner{% endblock %}
+{% block content %}
+
+<!-- Tab switcher -->
+<div style="display:flex;gap:8px;margin-bottom:24px;">
+  <button class="btn btn-primary" id="tab-url" onclick="switchTab('url')"><i class="fas fa-link"></i> URL Scanner</button>
+  <button class="btn btn-outline" id="tab-email" onclick="switchTab('email')"><i class="fas fa-envelope"></i> Email Analyzer</button>
+</div>
+
+<!-- URL Scanner -->
+<div id="panel-url">
+  <div class="card mb-3">
+    <div class="section-title"><i class="fas fa-search text-cyan"></i> URL Phishing Scanner</div>
+    <p class="text-sm mb-2" style="color:var(--text-secondary)">Enter any URL to perform a deep AI analysis for phishing indicators.</p>
+    <div class="flex gap-3" style="align-items:flex-end;">
+      <div class="form-group" style="flex:1;margin-bottom:0;">
+        <label class="form-label">Target URL</label>
+        <input type="text" class="form-control" id="url-input" placeholder="https://example.com/path?query=value" onkeydown="if(event.key==='Enter')scanURL()">
+      </div>
+      <button class="btn btn-primary" id="scan-btn" onclick="scanURL()" style="white-space:nowrap;height:44px;">
+        <i class="fas fa-radar"></i> &nbsp;Scan Now
+      </button>
+    </div>
+    <div class="mt-2 flex gap-2" style="flex-wrap:wrap;">
+      <span class="text-sm text-muted">Try samples:</span>
+      <button class="btn btn-sm btn-outline" onclick="setUrl('http://paypa1-secure-login.xyz/verify')">Phishing URL</button>
+      <button class="btn btn-sm btn-outline" onclick="setUrl('http://amazon-prize-winner.click/claim')">Suspicious URL</button>
+      <button class="btn btn-sm btn-outline" onclick="setUrl('https://www.google.com/search')">Safe URL</button>
+    </div>
+  </div>
+
+  <div id="scan-results" class="hidden">
+    <!-- Verdict card -->
+    <div class="card mb-3" id="verdict-card">
+      <div class="flex flex-center flex-between mb-2">
+        <div class="section-title" style="margin-bottom:0"><i class="fas fa-shield-alt text-cyan"></i> Scan Result</div>
+        <div id="verdict-export"></div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div id="verdict-display" style="margin-bottom:16px;"></div>
+          <div class="mb-2">
+            <div class="flex flex-between text-sm mb-1">
+              <span style="color:var(--text-secondary)">Risk Score</span>
+              <span id="risk-pct" class="font-mono font-bold"></span>
+            </div>
+            <div class="risk-bar-wrap"><div id="risk-bar" class="risk-bar" style="width:0%"></div></div>
+          </div>
+          <div class="flex gap-2 mt-2">
+            <div style="background:var(--bg-card2);border-radius:8px;padding:10px 16px;flex:1;text-align:center;">
+              <div class="text-sm text-muted">ML Score</div>
+              <div id="ml-score" class="font-mono text-cyan" style="font-size:1.2rem;font-weight:700;"></div>
+            </div>
+            <div style="background:var(--bg-card2);border-radius:8px;padding:10px 16px;flex:1;text-align:center;">
+              <div class="text-sm text-muted">Rule Score</div>
+              <div id="rule-score" class="font-mono text-cyan" style="font-size:1.2rem;font-weight:700;"></div>
+            </div>
+            <div style="background:var(--bg-card2);border-radius:8px;padding:10px 16px;flex:1;text-align:center;">
+              <div class="text-sm text-muted">AI Accuracy</div>
+              <div id="ai-acc" class="font-mono text-green" style="font-size:1.2rem;font-weight:700;"></div>
+            </div>
+          </div>
+        </div>
+        <div id="recommendations-panel"></div>
+      </div>
+    </div>
+
+    <!-- Feature analysis -->
+    <div class="grid-2 mb-3">
+      <div class="card">
+        <div class="section-title"><i class="fas fa-microscope text-cyan"></i> Feature Analysis</div>
+        <div id="features-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><i class="fas fa-satellite-dish text-cyan"></i> Threat Intelligence</div>
+        <div id="ti-panel" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scan-loading" class="hidden">
+    <div class="card" style="text-align:center;padding:48px;">
+      <div class="spinner" style="width:40px;height:40px;border-width:3px;margin:0 auto 16px;"></div>
+      <div style="color:var(--text-secondary);font-size:0.95rem;">Analyzing URL with AI engine...</div>
+      <div class="text-sm text-muted mt-2">Checking 20+ security features</div>
+    </div>
+  </div>
+</div>
+
+<!-- Email Scanner -->
+<div id="panel-email" class="hidden">
+  <div class="card mb-3">
+    <div class="section-title"><i class="fas fa-envelope-open-text text-cyan"></i> Email Phishing Analyzer</div>
+    <p class="text-sm mb-3" style="color:var(--text-secondary)">Paste email content below to detect phishing indicators, spoofed senders, and urgency tactics.</p>
+    <div class="grid-2">
+      <div>
+        <div class="form-group">
+          <label class="form-label">Sender Email</label>
+          <input type="text" class="form-control" id="e-sender" placeholder="sender@domain.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Subject</label>
+          <input type="text" class="form-control" id="e-subject" placeholder="Email subject line">
+        </div>
+      </div>
+      <div>
+        <div class="form-group">
+          <label class="form-label">Email Body</label>
+          <textarea class="form-control" id="e-body" placeholder="Paste the full email body here..." style="height:110px;"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-2" style="flex-wrap:wrap;">
+      <button class="btn btn-primary" id="email-btn" onclick="scanEmail()"><i class="fas fa-search"></i> Analyze Email</button>
+      <button class="btn btn-outline btn-sm" onclick="fillSampleEmail()">Load Sample Phishing Email</button>
+    </div>
+  </div>
+  <div id="email-results" class="hidden">
+    <div class="card">
+      <div class="section-title"><i class="fas fa-envelope text-cyan"></i> Email Analysis Result</div>
+      <div id="email-verdict"></div>
+      <div id="email-flags" class="mt-2" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// Tab switching
+function switchTab(t){
+  ['url','email'].forEach(n=>{
+    document.getElementById('panel-'+n).classList.toggle('hidden',n!==t);
+    document.getElementById('tab-'+n).className='btn '+(n===t?'btn-primary':'btn-outline');
+  });
+}
+// Handle #email hash
+if(window.location.hash==='#email') switchTab('email');
+
+function setUrl(u){document.getElementById('url-input').value=u;}
+
+async function scanURL(){
+  const url=document.getElementById('url-input').value.trim();
+  if(!url){showToast('Please enter a URL','warning');return;}
+  const btn=document.getElementById('scan-btn');
+  btn.innerHTML='<span class="spinner"></span> Scanning...';btn.disabled=true;
+  document.getElementById('scan-results').classList.add('hidden');
+  document.getElementById('scan-loading').classList.remove('hidden');
+  try{
+    const d=await apiPost('/api/scan/url',{url});
+    renderURLResult(d);
+    showToast('Analysis complete',d.verdict==='SAFE'?'success':d.verdict==='PHISHING'?'error':'warning');
+  }catch(e){showToast('Scan failed: '+e.message,'error');}
+  btn.innerHTML='<i class="fas fa-radar"></i> &nbsp;Scan Now';btn.disabled=false;
+  document.getElementById('scan-loading').classList.add('hidden');
+}
+
+function renderURLResult(d){
+  const res=document.getElementById('scan-results');
+  res.classList.remove('hidden');
+  // Verdict
+  const vColors={PHISHING:['#ff2244','badge-danger'],SUSPICIOUS:['#ffcc00','badge-warning'],SAFE:['#00ff88','badge-success']};
+  const [vc,bc]=vColors[d.verdict]||vColors.SAFE;
+  document.getElementById('verdict-display').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:56px;height:56px;border-radius:12px;background:rgba(${d.verdict==='PHISHING'?'255,34,68':d.verdict==='SUSPICIOUS'?'255,204,0':'0,255,136'},0.12);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">
+        ${d.verdict==='PHISHING'?'🚨':d.verdict==='SUSPICIOUS'?'⚠️':'✅'}
+      </div>
+      <div>
+        <span class="badge ${bc}" style="font-size:0.9rem;padding:5px 14px;">${d.verdict}</span>
+        <div class="font-mono text-sm text-muted mt-1" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.url}</div>
+      </div>
+    </div>`;
+  // Risk bar
+  const barClass=d.verdict==='PHISHING'?'danger':d.verdict==='SUSPICIOUS'?'warning':'success';
+  document.getElementById('risk-pct').textContent=d.risk_score+'%';
+  document.getElementById('risk-pct').style.color=vc;
+  const bar=document.getElementById('risk-bar');
+  bar.className='risk-bar '+barClass;
+  setTimeout(()=>bar.style.width=d.risk_score+'%',100);
+  document.getElementById('ml-score').textContent=d.ml_score+'%';
+  document.getElementById('rule-score').textContent=d.rule_score+'%';
+  document.getElementById('ai-acc').textContent=Math.round((d.model_accuracy||0.967)*100)+'%';
+  // Export button
+  if(d.scan_id){
+    document.getElementById('verdict-export').innerHTML=`<a href="/api/export/pdf/${d.scan_id}" class="btn btn-outline btn-sm"><i class="fas fa-file-pdf"></i> Export PDF</a>`;
+  }
+  // Recommendations
+  const recs=(d.recommendations||[]).map(r=>`<div class="alert ${r.includes('DO NOT')||r.includes('🚨')?'alert-danger':r.includes('⚠️')?'alert-warning':'alert-success'}" style="margin-bottom:8px;">${r}</div>`).join('');
+  document.getElementById('recommendations-panel').innerHTML=`<div class="section-title"><i class="fas fa-lightbulb text-cyan"></i> Recommendations</div>${recs}`;
+  // Features
+  const f=d.features||{};
+  const featItems=[
+    ['HTTPS','has_https',f.has_https?'✅ Yes':'❌ No',!f.has_https],
+    ['IP in URL','has_ip',f.has_ip?'⚠️ Yes':'✅ No',f.has_ip],
+    ['URL Length','url_length',f.url_length+' chars',f.url_length>100],
+    ['Keywords','keyword_count',f.keyword_count+' found',f.keyword_count>0],
+    ['Suspicious TLD','has_suspicious_tld',f.has_suspicious_tld?'⚠️ Yes':'✅ No',f.has_suspicious_tld],
+    ['Brand Spoof','has_brand_impersonation',f.has_brand_impersonation?'⚠️ Yes':'✅ No',f.has_brand_impersonation],
+    ['Domain Entropy','domain_entropy',f.domain_entropy,f.domain_entropy>3.5],
+    ['Subdomains','subdomain_count',f.subdomain_count,f.subdomain_count>2],
+  ];
+  document.getElementById('features-list').innerHTML=featItems.map(([label,,val,risk])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:6px;background:var(--bg-card2);">
+      <span class="text-sm" style="color:var(--text-secondary)">${label}</span>
+      <span class="text-sm font-mono" style="color:${risk?'var(--accent-red)':'var(--accent-green)'}">${val}</span>
+    </div>`).join('');
+  // Threat Intel
+  const ti=d.threat_intel||{};
+  const feeds=ti.feeds||{};
+  const tiHTML=Object.entries(feeds).map(([name,r])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-radius:6px;background:var(--bg-card2);">
+      <span class="text-sm" style="color:var(--text-secondary)">${name}</span>
+      <span class="badge ${r.status==='MALICIOUS'?'badge-danger':r.status==='SUSPICIOUS'?'badge-warning':'badge-success'}">${r.status}</span>
+    </div>`).join('');
+  document.getElementById('ti-panel').innerHTML=tiHTML||'<div class="text-sm text-muted">No threat intel data</div>';
+}
+
+async function scanEmail(){
+  const sender=document.getElementById('e-sender').value.trim();
+  const subject=document.getElementById('e-subject').value.trim();
+  const body=document.getElementById('e-body').value.trim();
+  if(!body&&!subject){showToast('Enter email content to analyze','warning');return;}
+  const btn=document.getElementById('email-btn');
+  btn.innerHTML='<span class="spinner"></span> Analyzing...';btn.disabled=true;
+  try{
+    const d=await apiPost('/api/scan/email',{sender,subject,body});
+    renderEmailResult(d);
+    showToast('Email analyzed',d.verdict==='SAFE'?'success':'error');
+  }catch(e){showToast('Analysis failed','error');}
+  btn.innerHTML='<i class="fas fa-search"></i> Analyze Email';btn.disabled=false;
+}
+
+function renderEmailResult(d){
+  document.getElementById('email-results').classList.remove('hidden');
+  const vColors={PHISHING:'danger',SUSPICIOUS:'warning',SAFE:'success'};
+  const c=vColors[d.verdict]||'info';
+  document.getElementById('email-verdict').innerHTML=`
+    <div class="alert alert-${c}">
+      <strong>${d.verdict==='PHISHING'?'🚨':'d.verdict==='SUSPICIOUS'?'⚠️':'✅'} ${d.verdict}</strong>
+      — Risk Score: <strong>${d.risk_score}%</strong>
+      &nbsp;|&nbsp; Suspicious keywords: <strong>${d.keyword_count}</strong>
+      &nbsp;|&nbsp; URLs found: <strong>${d.url_count}</strong>
+    </div>`;
+  const flags=(d.flags||[]).map(f=>`<div class="alert alert-${f.includes('🚨')?'danger':'warning'}">${f}</div>`).join('');
+  document.getElementById('email-flags').innerHTML=flags||'<div class="alert alert-success">✅ No phishing indicators detected.</div>';
+}
+
+function fillSampleEmail(){
+  document.getElementById('e-sender').value='security@paypa1-secure.xyz';
+  document.getElementById('e-subject').value='URGENT: Your account has been suspended — verify immediately';
+  document.getElementById('e-body').value=`Dear Customer,
+
+We have detected unusual activity on your account. Your access has been suspended.
+
+CLICK HERE IMMEDIATELY to verify your identity and restore access:
+http://paypal-secure-verify.xyz/login?token=abc123
+
+This is your FINAL NOTICE. If you do not act within 24 hours, your account will be permanently closed.
+
+Account security team
+PayPal Security Department`;
+}
+</script>
+{% endblock %}

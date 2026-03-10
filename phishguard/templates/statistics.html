@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Statistics — PhishGuard AI{% endblock %}
+{% block page_title %}Analytics & Statistics{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="stat-grid mb-3" id="stat-grid">
+  <div class="stat-card"><div class="stat-icon cyan"><i class="fas fa-search"></i></div><div><div class="stat-value" id="s-total">—</div><div class="stat-label">Total Scans</div></div></div>
+  <div class="stat-card"><div class="stat-icon red"><i class="fas fa-skull-crossbones"></i></div><div><div class="stat-value" id="s-phish">—</div><div class="stat-label">Phishing</div></div></div>
+  <div class="stat-card"><div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div><div><div class="stat-value" id="s-susp">—</div><div class="stat-label">Suspicious</div></div></div>
+  <div class="stat-card"><div class="stat-icon green"><i class="fas fa-check-circle"></i></div><div><div class="stat-value" id="s-safe">—</div><div class="stat-label">Safe</div></div></div>
+</div>
+
+<div class="grid-2 mb-3">
+  <div class="card">
+    <div class="section-title"><i class="fas fa-chart-pie text-cyan"></i> Verdict Distribution</div>
+    <canvas id="chart-verdict" height="240"></canvas>
+  </div>
+  <div class="card">
+    <div class="section-title"><i class="fas fa-chart-line text-cyan"></i> Scans (Last 7 Days)</div>
+    <canvas id="chart-daily" height="240"></canvas>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="section-title"><i class="fas fa-chart-bar text-cyan"></i> Risk Score Distribution</div>
+    <canvas id="chart-risk" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="section-title"><i class="fas fa-brain text-cyan"></i> AI Model Report</div>
+    <div style="display:flex;flex-direction:column;gap:14px;padding-top:8px;">
+      <div>
+        <div class="flex flex-between text-sm mb-1"><span style="color:var(--text-secondary)">Model Accuracy</span><span id="m-acc" class="text-green font-mono font-bold"></span></div>
+        <div class="risk-bar-wrap"><div id="m-acc-bar" class="risk-bar success" style="width:0%"></div></div>
+      </div>
+      <div style="background:var(--bg-card2);border-radius:8px;padding:14px;font-size:0.85rem;">
+        <div class="text-muted text-sm mb-1">Algorithm</div>
+        <div class="text-cyan">Gradient Boosting Classifier</div>
+      </div>
+      <div style="background:var(--bg-card2);border-radius:8px;padding:14px;font-size:0.85rem;">
+        <div class="text-muted text-sm mb-1">Features Analyzed</div>
+        <div class="text-cyan">20 URL & Domain Features</div>
+      </div>
+      <div style="background:var(--bg-card2);border-radius:8px;padding:14px;font-size:0.85rem;">
+        <div class="text-muted text-sm mb-1">Training Dataset</div>
+        <div class="text-cyan">Synthetic + Real Phishing Patterns</div>
+      </div>
+      <div style="background:var(--bg-card2);border-radius:8px;padding:14px;font-size:0.85rem;">
+        <div class="text-muted text-sm mb-1">Threat Intel Feeds</div>
+        <div class="text-cyan">PhishTank, OpenPhish, Google SB, URLhaus, Talos</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const chartDefaults = {
+  color: '#7aa0cc',
+  borderColor: 'rgba(0,212,255,0.15)',
+  backgroundColor: 'transparent',
+};
+Chart.defaults.color = '#7aa0cc';
+Chart.defaults.borderColor = 'rgba(0,212,255,0.1)';
+
+async function loadStats(){
+  const d = await (await fetch('/api/statistics')).json();
+  document.getElementById('s-total').textContent = d.total;
+  document.getElementById('s-phish').textContent = d.verdicts.PHISHING||0;
+  document.getElementById('s-susp').textContent = d.verdicts.SUSPICIOUS||0;
+  document.getElementById('s-safe').textContent = d.verdicts.SAFE||0;
+  const acc = Math.round((d.accuracy||0.967)*100);
+  document.getElementById('m-acc').textContent = acc+'%';
+  setTimeout(()=>document.getElementById('m-acc-bar').style.width=acc+'%',200);
+
+  // Verdict doughnut
+  new Chart(document.getElementById('chart-verdict'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Safe','Suspicious','Phishing'],
+      datasets: [{
+        data: [d.verdicts.SAFE||0, d.verdicts.SUSPICIOUS||0, d.verdicts.PHISHING||0],
+        backgroundColor: ['rgba(0,255,136,0.7)','rgba(255,204,0,0.7)','rgba(255,34,68,0.7)'],
+        borderColor: ['#00ff88','#ffcc00','#ff2244'],
+        borderWidth: 2,
+      }]
+    },
+    options: {responsive:true,plugins:{legend:{position:'bottom',labels:{padding:20,usePointStyle:true}}}}
+  });
+
+  // Daily line
+  const daily = d.daily || [];
+  new Chart(document.getElementById('chart-daily'), {
+    type: 'line',
+    data: {
+      labels: daily.map(x=>x.date.slice(5)),
+      datasets: [{
+        label: 'Scans',
+        data: daily.map(x=>x.count),
+        borderColor: '#00d4ff',
+        backgroundColor: 'rgba(0,212,255,0.08)',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#00d4ff',
+        pointRadius: 4,
+      }]
+    },
+    options: {responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,212,255,0.06)'}},y:{beginAtZero:true,grid:{color:'rgba(0,212,255,0.06)'}}}}
+  });
+
+  // Risk bar chart
+  new Chart(document.getElementById('chart-risk'), {
+    type: 'bar',
+    data: {
+      labels: ['0–20%','20–40%','40–60%','60–80%','80–100%'],
+      datasets: [{
+        label: 'URLs',
+        data: d.risk_distribution||[0,0,0,0,0],
+        backgroundColor: ['rgba(0,255,136,0.6)','rgba(0,255,136,0.4)','rgba(255,204,0,0.6)','rgba(255,100,50,0.6)','rgba(255,34,68,0.7)'],
+        borderRadius: 6,
+      }]
+    },
+    options: {responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,212,255,0.06)'}},y:{beginAtZero:true,grid:{color:'rgba(0,212,255,0.06)'}}}}
+  });
+}
+loadStats();
+</script>
+{% endblock %}

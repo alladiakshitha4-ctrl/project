@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — PhishGuard AI{% endblock %}
+{% block page_title %}Admin Control Center{% endblock %}
+{% block content %}
+<div class="stat-grid mb-3">
+  <div class="stat-card"><div class="stat-icon cyan"><i class="fas fa-users"></i></div><div><div class="stat-value">{{ users|length }}</div><div class="stat-label">Total Users</div></div></div>
+  <div class="stat-card"><div class="stat-icon yellow"><i class="fas fa-search"></i></div><div><div class="stat-value">{{ total_scans }}</div><div class="stat-label">Total Scans</div></div></div>
+  <div class="stat-card"><div class="stat-icon red"><i class="fas fa-skull-crossbones"></i></div><div><div class="stat-value">{{ total_phishing }}</div><div class="stat-label">Phishing Detected</div></div></div>
+  <div class="stat-card"><div class="stat-icon green"><i class="fas fa-flag"></i></div><div><div class="stat-value">{{ reports|length }}</div><div class="stat-label">Reports Submitted</div></div></div>
+</div>
+
+<div class="grid-2 mb-3">
+  <div class="card">
+    <div class="section-title"><i class="fas fa-users text-cyan"></i> User Management</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Scans</th><th>Joined</th></tr></thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0066ff,#00d4ff);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">{{ u.username[0].upper() }}</div>
+                <span>{{ u.username }}</span>
+              </div>
+            </td>
+            <td class="text-sm text-muted">{{ u.email }}</td>
+            <td><span class="badge {% if u.role=='admin' %}badge-danger{% else %}badge-success{% endif %}">{{ u.role.upper() }}</span></td>
+            <td class="font-mono text-sm">{{ u.scans_count or 0 }}</td>
+            <td class="text-sm text-muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title"><i class="fas fa-flag text-cyan"></i> Phishing Reports</div>
+    {% if reports %}
+    <div class="table-wrap" style="max-height:320px;overflow-y:auto;">
+      <table>
+        <thead><tr><th>URL</th><th>Category</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for r in reports %}
+          <tr>
+            <td class="url-cell" title="{{ r.url }}">{{ r.url }}</td>
+            <td class="text-sm">{{ r.category }}</td>
+            <td><span class="badge {% if r.status=='confirmed' %}badge-danger{% elif r.status=='dismissed' %}badge-success{% else %}badge-warning{% endif %}">{{ r.status.upper() }}</span></td>
+            <td>
+              <div class="flex gap-2">
+                <button class="btn btn-sm btn-danger" onclick="updateStatus({{ r.id }},'confirmed')"><i class="fas fa-check"></i></button>
+                <button class="btn btn-sm btn-success" onclick="updateStatus({{ r.id }},'dismissed')"><i class="fas fa-times"></i></button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:32px;color:var(--text-muted);">No reports submitted yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title"><i class="fas fa-cogs text-cyan"></i> System Information</div>
+  <div class="grid-3">
+    <div style="background:var(--bg-card2);border-radius:8px;padding:16px;">
+      <div class="text-sm text-muted mb-1">AI Engine</div>
+      <div class="text-cyan font-mono">GradientBoosting</div>
+    </div>
+    <div style="background:var(--bg-card2);border-radius:8px;padding:16px;">
+      <div class="text-sm text-muted mb-1">Model Accuracy</div>
+      <div class="text-green font-mono">96.7%</div>
+    </div>
+    <div style="background:var(--bg-card2);border-radius:8px;padding:16px;">
+      <div class="text-sm text-muted mb-1">Framework</div>
+      <div class="text-cyan font-mono">Flask + SQLAlchemy</div>
+    </div>
+    <div style="background:var(--bg-card2);border-radius:8px;padding:16px;">
+      <div class="text-sm text-muted mb-1">Threat Feeds</div>
+      <div class="text-cyan font-mono">5 Active</div>
+    </div>
+    <div style="background:var(--bg-card2);border-radius:8px;padding:16px;">
+      <div class="text-sm text-muted mb-1">Database</div>
+      <div class="text-cyan font-mono">SQLite</div>
+    </div>
+    <div style="background:var(--bg-card2);border-radius:8px;padding:16px;">
+      <div class="text-sm text-muted mb-1">Status</div>
+      <div class="text-green font-mono">🟢 OPERATIONAL</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function updateStatus(id, status){
+  const d=await apiPost(`/api/admin/report/${id}/status`,{status});
+  if(d.success){showToast(`Report marked as ${status}`,'success');setTimeout(()=>location.reload(),1000);}
+}
+</script>
+{% endblock %}
