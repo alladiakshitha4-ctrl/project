@@ -13,7 +13,11 @@ ssl._create_default_https_context = ssl._create_unverified_context
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'phishguard-secret-key-2024-ultra-secure'
 import os
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///phishguard.db')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///phishguard.db')
+# Fix for newer psycopg2
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
