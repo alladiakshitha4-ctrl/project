@@ -7,7 +7,9 @@ from utils.phishing_detector import PhishingDetector
 from utils.email_analyzer import EmailAnalyzer
 from utils.report_generator import generate_pdf_report
 from utils.threat_intel import ThreatIntelligence
-
+# Fix for psycopg2 on Vercel
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'phishguard-secret-key-2024-ultra-secure'
 import os
