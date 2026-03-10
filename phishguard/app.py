@@ -10,7 +10,8 @@ from utils.threat_intel import ThreatIntelligence
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'phishguard-secret-key-2024-ultra-secure'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///phishguard.db'
+import os
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///phishguard.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -300,15 +301,23 @@ def admin_stats():
                     'total_phishing': total_phishing, 'total_reports': total_reports,
                     'pending_reports': pending_reports})
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # Create default admin if no users exist
+# Auto-create tables on startup (needed for Vercel)
+with app.app_context():
+    db.create_all()
+    try:
         if User.query.count() == 0:
             hashed = bcrypt.generate_password_hash('admin123').decode('utf-8')
             admin_user = User(username='admin', email='admin@phishguard.ai',
-                              password=hashed, role='admin')
+                             password=hashed, role='admin')
             db.session.add(admin_user)
             db.session.commit()
-            print("Default admin created: admin / admin123")
+    except:
+        pass
+
+# This is required for Vercel
+app = app
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, port=5000)
