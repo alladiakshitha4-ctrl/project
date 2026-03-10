@@ -309,17 +309,17 @@ with app.app_context():
     try:
         if User.query.count() == 0:
             hashed = bcrypt.generate_password_hash('admin123').decode('utf-8')
-            admin_user = User(username='admin', email='admin@phishguard.ai',
-                             password=hashed, role='admin')
+            admin_user = User(
+                username='admin',
+                email='admin@phishguard.ai',
+                password=hashed,
+                role='admin'
+            )
             db.session.add(admin_user)
             db.session.commit()
     except:
         pass
 
-# This is required for Vercel
-app = app
-
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
